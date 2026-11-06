@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>卷宗 · 交接文档图标三版对比</title>
+<style>
+  body { margin:0; padding:28px 32px 48px; font:14px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; color:#1f2328; background:#fff; }
+  h1 { font-size:17px; margin:0 0 4px; }
+  p.lead { margin:0 0 26px; color:#57606a; font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(3, minmax(240px, 1fr)); gap:20px; }
+  .card { border:1px solid #e3e6ea; border-radius:12px; padding:16px 18px 18px; }
+  .card.is-on { border-color:#4d6bfe; box-shadow:0 0 0 2px rgba(77,107,254,.12); }
+  .tag { display:inline-block; font-size:11px; color:#4d6bfe; border:1px solid #4d6bfe; border-radius:9px; padding:0 6px; margin-left:6px; }
+  .title { font-size:14px; font-weight:600; margin-bottom:2px; }
+  .desc { font-size:12px; color:#57606a; margin-bottom:14px; }
+  .row { display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid #f0f2f5; }
+  .row:first-of-type { border-top:0; }
+  .label { width:56px; font-size:12px; color:#57606a; flex:none; }
+  .mini { height:22px; min-width:22px; padding:0 5px; border-radius:6px; border:1px solid transparent; background:transparent; color:#57606a; display:inline-flex; align-items:center; justify-content:center; }
+  .mini.hover { border-color:#e3e6ea; color:#1f2328; background:#f6f7f9; }
+  .mini.on { color:#4d6bfe; border-color:#4d6bfe; }
+  .mini.danger { color:#d1242f; border-color:#d1242f; }
+  .big { color:#1f2328; }
+  .big .mini { height:44px; min-width:44px; border-radius:9px; border-color:#e3e6ea; }
+  svg { display:block; flex:none; }
+  .note { margin-top:26px; font-size:12.5px; color:#57606a; }
+  code { background:#f6f7f9; border:1px solid #e3e6ea; border-radius:4px; padding:0 4px; font-size:12px; }
+</style>
+</head>
+<body>
+<h1>交接文档图标：三版对比</h1>
+<p class="lead">左边是面板里真实大小（14px 图标装在 22px 方按钮里），右边是放大 3 倍看细节。选定一版告诉我 A / B / C 就行。</p>
+
+<div class="grid" id="grid"></div>
+
+<p class="note">
+  A = 细线一套（默认，1.4px，直角端点，全线性）<br>
+  B = 粗线一套（2px，圆头圆角，更"实"一点）<br>
+  C = 实心一套（线性轮廓 + 实心主体，导出是实心箭头、删除是实心桶身，最显眼）<br>
+  三版都是 16×16 网格、只用 <code>currentColor</code>，所以换主题色也跟着变；放大看的那个白色方块就是 hover 时的底色。
+</p>
+
+<script>
+const SETS = {
+  A: { key: 'A', stroke: 1.4, round: false, name: '细线（当前）', desc: '1.4px 线宽 · 直角端点', icons: {
+    export: { stroke: ['M3.2 10.6v2.4h9.6v-2.4', 'M8 2.8v6.3', 'M5.5 5.3L8 2.8l2.5 2.5'] },
+    import: { stroke: ['M3.2 10.6v2.4h9.6v-2.4', 'M8 2.8v6.3', 'M5.5 6.6L8 9.1l2.5-2.5'] },
+    del:    { stroke: ['M3 4.7h10', 'M6.3 4.7V3.1h3.4v1.6', 'M4.5 4.7l.7 8.2h5.6l.7-8.2'] },
+    locate: { stroke: ['M8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z', 'M8 1.7v2.2', 'M8 12.1v2.2', 'M1.7 8h2.2', 'M12.1 8h2.2'] },
+    check:  { stroke: ['M3.4 3.4h9.2v9.2H3.4z', 'M5.6 8.1l1.8 1.8 3.2-3.6'] },
+  } },
+  B: { key: 'B', stroke: 2, round: true, name: '粗线', desc: '2px 线宽 · 圆头圆角', icons: {
+    export: { stroke: ['M3.4 10.4v2.4h9.2v-2.4', 'M8 2.8v6.2', 'M5.4 5.4L8 2.8l2.6 2.6'] },
+    import: { stroke: ['M3.4 10.4v2.4h9.2v-2.4', 'M8 2.8v6.2', 'M5.4 6.5L8 9.1l2.6-2.6'] },
+    del:    { stroke: ['M3 4.8h10', 'M6.4 4.8V3.2h3.2v1.6', 'M4.8 4.8l.7 8.1h5l.7-8.1'] },
+    locate: { stroke: ['M8 4.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8Z', 'M8 1.9v2.1', 'M8 12v2.1', 'M1.9 8h2.1', 'M12 8h2.1'] },
+    check:  { stroke: ['M3.6 3.6h8.8v8.8H3.6z', 'M5.7 8.1l1.7 1.7 3.1-3.5'] },
+  } },
+  C: { key: 'C', stroke: 1.4, round: true, name: '实心', desc: '轮廓 + 实心主体', icons: {
+    export: { stroke: ['M3.2 10.8h9.6', 'M8 9.1V3'], fill: ['M8 1.9l2.8 3.2H5.2z'] },
+    import: { stroke: ['M3.2 10.8h9.6', 'M8 2.9v6.1'], fill: ['M8 10.1L5.2 6.9h5.6z'] },
+    del:    { stroke: ['M2.9 4.7h10.2', 'M6.3 4.7V3.1h3.4v1.6'], fill: ['M4.6 5.6h6.8l-.7 7.5H5.3z'] },
+    locate: { stroke: ['M8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z', 'M8 1.7v1.6', 'M8 12.7v1.6', 'M1.7 8h1.6', 'M12.7 8h1.6'], fill: ['M8 6.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z'] },
+    check:  { stroke: ['M3.4 3.4h9.2v9.2H3.4z'], fill: ['M5.5 8.1l1.9 1.9 3.4-3.8 1.1 1-4.6 5-3-3z'] },
+  } },
+};
+
+const LABELS = { export: '导出', import: '导入', del: '删除', locate: '定位', check: '勾选' };
+const NAMES = { export: 'export', import: 'import', del: 'del', locate: 'locate', check: 'check' };
+
+function svgOf(set, name, size) {
+  const def = set.icons[name];
+  const kids = [];
+  for (const d of def.stroke || []) kids.push(`<path d="${d}" fill="none" stroke="currentColor" stroke-width="${set.stroke}" stroke-linecap="${set.round ? 'round' : 'butt'}" stroke-linejoin="${set.round ? 'round' : 'miter'}"/>`);
+  for (const d of def.fill || []) kids.push(`<path d="${d}" fill="currentColor" stroke="none"/>`);
+  return `<svg viewBox="0 0 16 16" width="${size}" height="${size}">${kids.join('')}</svg>`;
+}
+
+const grid = document.getElementById('grid');
+for (const key of ['A', 'B', 'C']) {
+  const set = SETS[key];
+  const card = document.createElement('div');
+  card.className = 'card' + (key === 'A' ? ' is-on' : '');
+  const rows = Object.keys(LABELS).map((name) => {
+    const state = name === 'del' ? ' danger' : name === 'check' ? ' on' : '';
+    return `<div class="row">
+      <span class="label">${LABELS[name]}</span>
+      <span class="mini${state}">${svgOf(set, name, 14)}</span>
+      <span class="mini hover">${svgOf(set, name, 14)}</span>
+      <span class="big"><span class="mini">${svgOf(set, name, 42)}</span></span>
+    </div>`;
+  }).join('');
+  card.innerHTML = `<div class="title">${key} · ${set.name}${key === 'A' ? '<span class="tag">正在用</span>' : ''}</div>
+    <div class="desc">${set.desc}</div>${rows}`;
+  grid.appendChild(card);
+}
+</script>
+</body>
+</html>

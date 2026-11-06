@@ -1,0 +1,66 @@
+{
+  "name": "dsh-dossier",
+  "version": "0.1.0-beta.1",
+  "description": "Dossier for DeepSeek Harness: split long-running projects into volumes and hand off state with a generated handoff document instead of replaying context.",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "dossier",
+    "handoff",
+    "context",
+    "session"
+  ],
+  "author": "JungleYXu",
+  "license": "MIT",
+  "homepage": "https://github.com/JungleYXu/dsh-dossier#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JungleYXu/dsh-dossier.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JungleYXu/dsh-dossier/issues"
+  },
+  "scripts": {
+    "selftest": "node scripts/selftest.mjs",
+    "smoke": "node scripts/client-smoke.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  }
+}
