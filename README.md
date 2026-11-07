@@ -1,13 +1,16 @@
 # dsh-dossier · 卷宗
 
-**把长期项目切成「卷宗」，用一份交接文档替代重放上下文。**
+**把长期项目切成「卷宗」：对话按项目归档，状态用一份交接文档传给下一个对话。**
 
 [![npm](https://img.shields.io/npm/v/dsh-dossier?label=npm&color=blue)](https://www.npmjs.com/package/dsh-dossier)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![status](https://img.shields.io/badge/status-1.0-brightgreen)](#状态)
 [![platform](https://img.shields.io/badge/DSH%20Desktop-0.2.x-5b6b8c)](https://www.deepseek.com/harness/)
 
-DeepSeek Harness 插件：侧栏多一个「卷宗」面板，把会话按项目分卷归档；需要换人、换机器、或者隔了几天再回来时，让当前会话自己写一份交接文档，接手的会话读文档就能继续。
+DeepSeek Harness 插件，两个核心功能：
+
+- **对话管理** —— 侧栏多一个「卷宗」面板，把会话按项目分进文件夹：归卷、改名、排序、置顶、多选、批量删除，对话再多也找得回来。
+- **项目交接** —— 让当前会话写一份 800–1500 token 的交接文档，接手的对话读文档就能继续，不用重放几十万 token 的历史。
 
 ---
 
@@ -23,35 +26,38 @@ Agent 会话的费用不按轮数收，按**被重新计算的上下文长度**�
 | fork 一条新对话 | fork 继承全部历史，第一次请求同样是全量未命中 |
 | 把状态写进 `AGENTS.md` | 那是系统提示的一部分，一改，整个工作区的缓存全断 |
 
-卷宗走第四条路：**把项目切成多条短对话（卷宗），用一份 800–1500 token 的交接文档传递状态**。新会话只读交接文档，不读旧对话。
+卷宗走第四条路：**项目切成多条短对话（卷宗），用一份 800–1500 token 的交接文档传递状态**。新会话只读交接文档，不读旧对话。
+
+而切开的对话需要有人管 —— 这就是面板那一半。
 
 ---
 
-## 核心能力
+## 核心功能一：对话管理
 
-### 1. 卷宗面板
+侧栏「卷宗」图标 → 整页面板。左栏即导航：**★ 交接文档**（置顶）→ 全部对话 → 未归档 → 卷宗分组 → 各卷宗下的对话。
 
-侧栏「卷宗」图标 → 整页面板。左栏即导航：**★ 交接文档**（置顶）→ 全部对话 → 未归档 → 卷宗分组 → 各卷宗。
+**卷宗就是项目文件夹。**
 
-- 每条对话**最多属于一个卷宗**；归入/移出都在面板里完成（「移到未归档」只退出卷宗，不删对话、不删文件）
+- 新建、重命名、删除卷宗；卷宗可 ↑↓ 调序、置顶、「按更新时间自动排序」
+- 删除卷宗只解散分组：里面的对话回到「未归档」，对话本身和它的交接文档都不会被删
+- 一个对话**最多属于一个卷宗**；归入 / 移出都在面板里完成（「移到未归档」只退出卷宗，不删对话、不删文件）
+- 多选后批量「归入…」，浮层里可以直接新建卷宗；删除走插件自己的确认框，不用浏览器 `confirm`
+
+**对话本身也归这里管。**
+
+- 改名（工作区里的会话标题一起改）
+- 置顶、↑↓ 手动调位
+- 双击或「进入对话」直接打开
 - 排序三档：**☰ 默认（手动）** / **🕘 时间** / **AZ 名称**。时间和名称只影响检索，不改默认顺序；回到默认时手动顺序还在
-- 默认顺序下可 ↑↓ 调位、可置顶；卷宗自身支持「按更新时间自动排序」开关
 - 卡片 / 列表两种显示（卡片固定四行，行高不随内容跳动），选择记在浏览器本地
-- 多选后「归入…」浮层里可直接新建卷宗；删除走插件自己的确认框，不用浏览器 `confirm`
 
-### 2. 交接文档目录
+---
 
-交接文档就是工作区 `goals/` 下的 Markdown，面板直接列出来，不用开文件管理器。
+## 核心功能二：项目交接
 
-- 每个卷宗在 `goals/` 下有同名子文件夹；没有卷宗的对话，文档落在 `goals/` 主目录（面板上归在「未归档」）
-- 默认全部收起，一次展开一个；每份文档三个动作：**导出**（系统目录选择器，重名自动加 `-2`）、**删除**（备份仍在）、**定位**（跳回生成它的那条会话）
-- 文件夹级支持逐份勾选 / 整组导出 / 整组删除
-- **整包导出/导入**：一个 `dossier-handoff-<时间>.json` 带走全部文档（含卷宗归属），换机器导入；同名同内容跳过，同名不同内容另存 `-2`、`-3`，**绝不覆盖**
-- 宿主只允许写 `goals/` 内的路径：先解析再比对前缀，`../` 与绝对路径越界一律拒绝
+### 一键交接：`dossier_handoff_write`
 
-### 3. 一键交接（`dossier_handoff_write`）
-
-对话框左下角「交接」按钮 → 给当前会话投递一条指令 → agent 调用 `dossier_handoff_write` 落盘：
+对话左下角「交接」按钮 → 给当前会话投递一条短指令 → agent 调用工具落盘：
 
 ```
 <会话工作区>/goals/<卷宗名>/阶段-NN-<标题>.md
@@ -64,15 +70,34 @@ Agent 会话的费用不按轮数收，按**被重新计算的上下文长度**�
 - 写盘前扫密钥与内网地址（`sk-…`、`password=`、`10./127./192.168./172.16-31.`、`PRIVATE KEY`），命中即告警
 - 超过 1800 token 会提示「砍背景与过程」
 
-交接文档写出来能不能被接住，可以测：`scripts/handoff-eval.mjs` 对骨架八节、1500 token 预算、路径悬空、密钥残留做静态检查；质量层面用「零上下文盲接」——把文档单独交给一个不许读仓库的新会话，看它能不能复述下一步与验收标准。
-
 文档骨架是固定的，写在工具描述里，agent 每次都会读到：
 
 > 目标 / 当前状态 / 关键决策 / **已否决的方案** / 约束 / 涉及文件 / 下一步 / 未解决与风险
 
 其中「已否决的方案」最容易被省略、代价也最高 —— 不写，接手的人会把否决过的路重走一遍。
 
-### 4. 成本可见
+### 交接文档目录
+
+交接文档就是工作区 `goals/` 下的 Markdown，面板直接列出来，不用开文件管理器。
+
+- 每个卷宗在 `goals/` 下有同名子文件夹；没有卷宗的对话，文档落在 `goals/` 主目录（面板上归在「未归档」）
+- 默认全部收起，一次展开一个；每份文档三个动作：**导出**（系统目录选择器，重名自动加 `-2`）、**删除**（备份仍在）、**定位**（跳回生成它的那条会话）
+- 文件夹级支持逐份勾选 / 整组导出 / 整组删除
+- **整包导出/导入**：一个 `dossier-handoff-<时间>.json` 带走全部文档（含卷宗归属），换机器导入；同名同内容跳过，同名不同内容另存 `-2`、`-3`，**绝不覆盖**
+- 宿主只允许写 `goals/` 内的路径：先解析再比对前缀，`../` 与绝对路径越界一律拒绝
+
+### 用交接文档开新对话
+
+勾一份或几份交接文档 → 「开新对话」：新对话建在同一个工作目录里，**第一条消息就是**「先读这几份，按里面的『当前状态』和『下一步』接着做」。开之前会先问一句，列清楚带哪几份、费用发生在哪，不会一点就凭空多出一个对话。
+
+### 交接文档写得好不好，可以测
+
+- `scripts/handoff-eval.mjs`：23 项静态检查 —— 八节骨架齐全、≤1500 token、无代码块、反引号里的路径必须存在、`已否决` 必须是「做法 → 症状 → 结论」三段式、下一步必须带验收标准、无密钥与内网地址
+- **零上下文盲接**：把文档单独交给一个不许读仓库的新会话，看它能不能复述「下一步」与验收标准 —— 这是唯一能验证「文档真的接得住」的办法
+
+---
+
+## 成本可见
 
 面板顶部显示最近一条对话的规模：步数、消息条数、上下文长度、上一轮实际花费与缓存命中率（按 deepseek-flash 现价估算，空闲/高峰分档）。
 
@@ -150,7 +175,7 @@ scripts/   自测
 
 ## English summary
 
-A DSH plugin that treats long-running projects as **volumes**: group sessions per project in a sidebar panel, and hand state to a fresh session through a generated handoff document instead of replaying context. Ships three surfaces — the volume panel, the `goals/`-backed handoff document browser (export / delete / jump-to-source, whole-bundle export & import), and a `dossier_handoff_write` tool with a fixed skeleton (goal / status / decisions / **rejected options** / constraints / files / next steps / risks). Also surfaces per-session context size and the cost of a cold restart.
+A DSH plugin with two halves. **Conversation management:** a sidebar panel that groups sessions into project volumes (folders) — assign, rename, reorder, pin, multi-select, per-volume sorting and card/list views. **Project handoff:** the current session writes a 1500-token handoff document (`goals/`, fixed eight-section skeleton including *rejected options*), and a fresh session picks it up — either by reading one document or by starting a new conversation directly from it. Also ships a document browser with export/delete/jump-to-source and whole-bundle export/import, a static handoff linter, and per-session context/cold-start cost estimates.
 
 ## License
 
