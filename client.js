@@ -51,7 +51,10 @@ window.__ModuleLoader__.load({
         body = null
       }
       if (!response.ok || (body && body.ok === false)) {
-        throw new Error((body && body.error) || `HTTP ${response.status}`)
+        const error = new Error((body && body.error) || `HTTP ${response.status}`)
+        // 宿主用 code 区分「状态不满足」（如空对话）与真正的失败，客户端要能分开显示。
+        if (body && body.code) error.code = String(body.code)
+        throw error
       }
       return body || {}
     }
@@ -303,131 +306,68 @@ window.__ModuleLoader__.load({
     /* --------------------------------------------------------- 文档图标 */
 
     /*
-     * 交接文档那几个操作图标用内联 SVG，不再用 ⤓ ✕ ⌖ ☑ 这些字符 —— 字符在不同
-     * 字体里基线、粗细都不一样，看起来就脏。三套画法，改 ICON_SET 换一套：
-     *   A 细线方头（1.3）轻、精确
-     *   B 粗线圆头（1.9）醒目
-     *   C 细线圆头 + 关键部位实心（箭头、桶身、圆心）有层次
+     * 全部图标走同一套线条：16×16 网格、1.5 描边、圆头圆角、只描边不填色
+     * （只有聊天气泡里的三个点、定位的圆心用实心，缩到 14px 也认得出来）。
+     * 不用 ⤓ ✕ ⌖ ☑ 这些字符 —— 字符在不同字体里基线、粗细都不一样，看起来就脏。
      */
-    const ICON_SET = 'A'
-
-    const GLYPH_SETS = {
-      A: {
-        stroke: 1.4,
-        round: false,
-        export: {
-          stroke: ['M3.2 10.6v2.4h9.6v-2.4', 'M8 2.8v6.3', 'M5.5 5.3L8 2.8l2.5 2.5'],
-        },
-        import: {
-          stroke: ['M3.2 10.6v2.4h9.6v-2.4', 'M8 2.8v6.3', 'M5.5 6.6L8 9.1l2.5-2.5'],
-        },
-        del: {
-          stroke: ['M3 4.7h10', 'M6.3 4.7V3.1h3.4v1.6', 'M4.5 4.7l.7 8.2h5.6l.7-8.2'],
-        },
-        locate: {
-          stroke: ['M8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z', 'M8 1.7v2.2', 'M8 12.1v2.2', 'M1.7 8h2.2', 'M12.1 8h2.2'],
-        },
-        check: {
-          stroke: ['M3.4 3.4h9.2v9.2H3.4z', 'M5.6 8.1l1.8 1.8 3.2-3.6'],
-        },
-        /* 卷宗：文件夹；交接文档组：一叠纸。用线条而不是 emoji，才跟同一套粗细走 */
-        folder: {
-          stroke: ['M2.4 4.7h3.7l1.2 1.5h6.3v6.3H2.4z'],
-        },
-        doc: {
-          stroke: ['M4.8 2.6h4l2.4 2.4v8.4H4.8z', 'M8.6 2.8v2.4h2.4'],
-        },
+    const GLYPHS = {
+      folder: {
+        stroke: ['M2.6 5.2a1 1 0 0 1 1-1h3l1.6 2h4.2a1 1 0 0 1 1 1v5.2a1 1 0 0 1-1 1H3.6a1 1 0 0 1-1-1z'],
       },
-      B: {
-        stroke: 2,
-        round: true,
-        export: {
-          stroke: ['M3.4 10.4v2.4h9.2v-2.4', 'M8 2.8v6.2', 'M5.4 5.4L8 2.8l2.6 2.6'],
-        },
-        import: {
-          stroke: ['M3.4 10.4v2.4h9.2v-2.4', 'M8 2.8v6.2', 'M5.4 6.5L8 9.1l2.6-2.6'],
-        },
-        del: {
-          stroke: ['M3 4.8h10', 'M6.4 4.8V3.2h3.2v1.6', 'M4.8 4.8l.7 8.1h5l.7-8.1'],
-        },
-        locate: {
-          stroke: ['M8 4.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8Z', 'M8 1.9v2.1', 'M8 12v2.1', 'M1.9 8h2.1', 'M12 8h2.1'],
-        },
-        check: {
-          stroke: ['M3.6 3.6h8.8v8.8H3.6z', 'M5.7 8.1l1.7 1.7 3.1-3.5'],
-        },
-        folder: {
-          stroke: ['M2.6 4.9h3.5l1.2 1.5h6.1v6.1H2.6z'],
-        },
-        doc: {
-          stroke: ['M4.9 2.8h3.9l2.3 2.3v8.1H4.9z', 'M8.6 3v2.3h2.3'],
-        },
+      doc: {
+        stroke: ['M4.6 2.6h4.1l2.7 2.7v8.1H4.6z', 'M8.7 2.7v2.7h2.7'],
       },
-      C: {
-        stroke: 1.4,
-        round: true,
-        export: {
-          stroke: ['M3.2 10.8h9.6', 'M8 9.1V3'],
-          fill: ['M8 1.9l2.8 3.2H5.2z'],
-        },
-        import: {
-          stroke: ['M3.2 10.8h9.6', 'M8 2.9v6.1'],
-          fill: ['M8 10.1L5.2 6.9h5.6z'],
-        },
-        del: {
-          stroke: ['M2.9 4.7h10.2', 'M6.3 4.7V3.1h3.4v1.6'],
-          fill: ['M4.6 5.6h6.8l-.7 7.5H5.3z'],
-        },
-        locate: {
-          stroke: ['M8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z', 'M8 1.7v1.6', 'M8 12.7v1.6', 'M1.7 8h1.6', 'M12.7 8h1.6'],
-          fill: ['M8 6.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z'],
-        },
-        check: {
-          stroke: ['M3.4 3.4h9.2v9.2H3.4z'],
-          fill: ['M5.5 8.1l1.9 1.9 3.4-3.8 1.1 1-4.6 5-3-3z'],
-        },
-        folder: {
-          stroke: ['M2.4 4.7h3.7l1.2 1.5h6.3v6.3H2.4z'],
-          fill: ['M2.9 5.2h3.4l1.2 1.5h5.6v5.3H2.9z'],
-        },
-        doc: {
-          stroke: ['M4.8 2.6h4l2.4 2.4v8.4H4.8z', 'M8.6 2.8v2.4h2.4'],
-          fill: ['M5.3 5.8h6.4v7.1H5.3z'],
-        },
-      },
-    }
-
-    /* 对话行 / 卷宗行上那几个动作图标：三套画法共用同一份路径，粗细跟 ICON_SET 走 */
-    const EXTRA_GLYPHS = {
       chat: {
-        /* 圆形气泡 + 右下小尾巴 + 三个点：跟文件夹的方块轮廓区分开，缩到 14px 也不会看混 */
-        stroke: ['M8 2.9a5.1 5.1 0 1 1 0 10.2 5.1 5.1 0 0 1 0-10.2Z', 'M4.55 11.45 3.35 14.15 6.25 13.0'],
+        stroke: [
+          'M3 9.2V6.4a2.2 2.2 0 0 1 2.2-2.2h5.6A2.2 2.2 0 0 1 13 6.4v2.8a2.2 2.2 0 0 1-2.2 2.2H7.4L4.8 13.4v-2A2.2 2.2 0 0 1 3 9.2z',
+        ],
         fill: [
-          'M5.9 7.05a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Z',
-          'M8.05 7.05a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Z',
-          'M10.2 7.05a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Z',
+          'M5.9 7.05a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z',
+          'M8 7.05a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z',
+          'M10.1 7.05a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z',
         ],
       },
       pin: {
-        stroke: ['M6.4 2.6h3.2l-.5 3.1L11 7.4H5l1.9-1.7z', 'M8 7.4v6'],
+        stroke: ['M6.4 2.9h3.2l-.5 3.1 1.6 1.8H5.3l1.6-1.8z', 'M8 7.8v5.6'],
+      },
+      check: {
+        stroke: ['M3.4 3.4h9.2v9.2H3.4z', 'M5.7 8.1l1.6 1.7 3.1-3.6'],
+      },
+      export: {
+        stroke: ['M3.2 10.4v2.4h9.6v-2.4', 'M8 3.1v6.4', 'M5.6 5.5L8 3.1l2.4 2.4'],
+      },
+      import: {
+        stroke: ['M3.2 10.4v2.4h9.6v-2.4', 'M8 3.1v6.4', 'M5.6 7.1L8 9.5l2.4-2.4'],
+      },
+      del: {
+        stroke: ['M3.3 4.7h9.4', 'M6.5 4.7V3.2h3v1.5', 'M4.9 4.7l.6 8.1h5l.6-8.1'],
+      },
+      locate: {
+        stroke: [
+          'M8 4.9a3.1 3.1 0 1 0 0 6.2 3.1 3.1 0 0 0 0-6.2Z',
+          'M8 1.9v2.1',
+          'M8 12v2.1',
+          'M1.9 8h2.1',
+          'M12 8h2.1',
+        ],
+        fill: ['M8 7.1a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Z'],
       },
       edit: {
-        stroke: ['M2.9 13.1l3.4-.6 7.1-7.1-2.8-2.8-7.1 7.1z', 'M9.7 2.6l2.8 2.8'],
+        stroke: ['M3 13l3.3-.6 6.8-6.8-2.7-2.7L3.6 9.7z', 'M8.9 3l2.7 2.7'],
       },
       up: {
-        stroke: ['M8 12.8V3.4', 'M4.4 7L8 3.4 11.6 7'],
+        stroke: ['M8 12.9V3.3', 'M4.7 6.6L8 3.3l3.3 3.3'],
       },
       down: {
-        stroke: ['M8 3.2v9.4', 'M4.4 9L8 12.6 11.6 9'],
+        stroke: ['M8 3.1v9.6', 'M4.7 9.4L8 12.7l3.3-3.3'],
       },
       out: {
-        stroke: ['M9.6 3.4h3.2v9.2H9.6', 'M2.6 8h7.4', 'M7.4 5.6L9.8 8l-2.4 2.4'],
+        stroke: ['M9.7 3.4h2.7a1 1 0 0 1 1 1v7.2a1 1 0 0 1-1 1H9.7', 'M3 8h7.4', 'M7.8 5.6L10.2 8l-2.4 2.4'],
       },
     }
 
     function glyph(name) {
-      const set = GLYPH_SETS[ICON_SET] || GLYPH_SETS.A
-      const item = set[name] || EXTRA_GLYPHS[name]
+      const item = GLYPHS[name]
       if (!item) return null
       const kids = []
       for (const d of item.stroke || []) {
@@ -445,9 +385,9 @@ window.__ModuleLoader__.load({
           width: 14,
           height: 14,
           stroke: 'currentColor',
-          strokeWidth: String(set.stroke),
-          strokeLinecap: set.round ? 'round' : 'butt',
-          strokeLinejoin: set.round ? 'round' : 'miter',
+          strokeWidth: '1.5',
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
           'aria-hidden': 'true',
           focusable: 'false',
         },
@@ -634,17 +574,16 @@ window.__ModuleLoader__.load({
 .dz-input { box-sizing:border-box; font:inherit; font-size:13px; height:30px; padding:0 9px; border-radius:7px; border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-base); color:var(--dsw-alias-label-primary); outline:none; width:100%; }
 .dz-input:focus { border-color:var(--dsw-alias-brand-primary); }
 /* 交接按钮：胶囊形，跟输入框边上那些控件一个体量；点一下会往当前对话发一条短消息 */
-.dz-hb { font:inherit; font-size:12px; height:28px; padding:0 10px 0 8px; border-radius:999px; border:1px solid var(--dsw-alias-border-l1); background:transparent; color:var(--dsw-alias-label-secondary); cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:color .12s, border-color .12s, background .12s; }
+.dz-hb { font:inherit; font-size:12px; height:28px; padding:0 10px 0 8px; border-radius:999px; border:1px solid var(--dsw-alias-border-l1); background:transparent; color:var(--dsw-alias-label-primary); cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:color .12s, border-color .12s, background .12s; }
 .dz-hb:hover { background:var(--dsw-alias-bg-layer-2); color:var(--dsw-alias-brand-primary); border-color:var(--dsw-alias-brand-primary); }
 .dz-hb:active { transform:translateY(.5px); }
-.dz-hb.is-busy { color:var(--dsw-alias-brand-primary); border-color:var(--dsw-alias-brand-primary); border-style:dashed; }
-.dz-hb.is-ok { color:var(--dsw-alias-state-success-primary); border-color:var(--dsw-alias-state-success-primary); }
+.dz-hb.is-busy { color:var(--dsw-alias-state-success-primary); border-color:var(--dsw-alias-state-success-primary); border-style:dashed; }
+.dz-hb.is-ok { color:var(--dsw-alias-label-primary); border-color:var(--dsw-alias-state-success-primary); }
 .dz-hb.is-err { color:var(--dsw-alias-state-error-primary); border-color:var(--dsw-alias-state-error-primary); }
 .dz-hb:disabled { opacity:.7; cursor:default; }
 .dz-hb:disabled:hover { background:transparent; }
 .dz-hb-text { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:.02em; }
 .dz-hb-ico { display:inline-flex; align-items:center; opacity:.85; }
-.dz-hb-hint { font-size:9.5px; opacity:.55; border-left:1px solid currentColor; padding-left:6px; margin-left:1px; line-height:1; }
 
 /* 左栏 / 主列表都限高自己滚：卷宗和对话只会越用越多，不能把整页一直往下拉长 */
 .dz-side { position:sticky; top:12px; max-height:calc(100vh - 128px); }
@@ -690,17 +629,15 @@ window.__ModuleLoader__.load({
           viewBox: '0 0 24 24',
           fill: 'none',
           stroke: 'currentColor',
-          strokeWidth: 1.7,
+          strokeWidth: 1.6,
           strokeLinecap: 'round',
           strokeLinejoin: 'round',
           'aria-hidden': 'true',
           focusable: 'false',
         },
-        h('path', {
-          d: 'M3 7.6A1.6 1.6 0 0 1 4.6 6h4.1l1.7 2.1h9A1.6 1.6 0 0 1 21 9.7v7.7A1.6 1.6 0 0 1 19.4 19H4.6A1.6 1.6 0 0 1 3 17.4z',
-        }),
-        h('path', { d: 'M7.6 12.4h8.8' }),
-        h('path', { d: 'M7.6 15.4h5.6' }),
+        h('path', { d: 'M3.6 8.3h16.8v9.2a1.4 1.4 0 0 1-1.4 1.4H5a1.4 1.4 0 0 1-1.4-1.4z' }),
+        h('path', { d: 'M2.8 5.1h18.4v3.2H2.8z' }),
+        h('path', { d: 'M9.4 12.8h5.2' }),
       )
     }
 
@@ -2736,18 +2673,30 @@ window.__ModuleLoader__.load({
           await postJson(`${BASE}/handoff`, { sessionId })
           setStatus('ok')
         } catch (err) {
-          setStatus('error')
+          const code = err && err.code ? String(err.code) : ''
+          setStatus(code === 'empty-session' ? 'empty' : 'error')
           setHint(messageOf(err))
         }
       }
 
       const label =
-        status === 'sending' ? '生成中…' : status === 'ok' ? '已生成' : status === 'error' ? '重试' : '交接'
+        status === 'sending'
+          ? '生成中…'
+          : status === 'ok'
+            ? '已生成'
+            : status === 'empty'
+              ? '无可交接'
+              : status === 'error'
+                ? '重试'
+                : '交接'
       const title =
         status === 'error'
           ? hint || '交接请求失败'
-          : '生成本次交接文档：会往当前对话发一条短消息让它写，费用约等于一次普通轮次；文档写进项目 goals/ 并自动备份'
-      const tone = status === 'sending' ? ' is-busy' : status === 'ok' ? ' is-ok' : status === 'error' ? ' is-err' : ''
+          : status === 'empty'
+            ? hint || '这条对话还没有可交接的内容'
+            : '生成本次交接文档：会往当前对话发一条短消息让它写，费用约等于一次普通轮次；文档写进项目 goals/ 并自动备份'
+      const tone =
+        status === 'sending' ? ' is-busy' : status === 'ok' ? ' is-ok' : status === 'error' || status === 'empty' ? ' is-err' : ''
 
       return h(
         'button',
@@ -2761,7 +2710,6 @@ window.__ModuleLoader__.load({
         [
           h('span', { key: 'i', className: 'dz-hb-ico' }, glyph('doc')),
           h('span', { key: 't', className: 'dz-hb-text' }, label),
-          status === 'idle' ? h('span', { key: 'h', className: 'dz-hb-hint' }, '交接文档') : null,
         ],
       )
     }

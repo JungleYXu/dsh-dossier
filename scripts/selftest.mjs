@@ -10,6 +10,8 @@
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { Readable } from 'node:stream'
+import { fileURLToPath } from 'node:url'
 
 const root = mkdtempSync(join(tmpdir(), 'dossier-selftest-'))
 const storePath = join(root, 'dossier.json')
@@ -95,6 +97,7 @@ try {
   eq('scanSecrets 命中 sk-', scanSecrets('key = sk-abcdefghijklmnopqrst').length, 1)
   eq('scanSecrets 命中 password', scanSecrets('password=hunter2').length, 1)
   eq('scanSecrets 命中内网', scanSecrets('连 192.168.31.7:8080').length, 1)
+eq('scanSecrets 不把 loopback 当内网', scanSecrets('GUI 在 http://127.0.0.1:52638'), [])
   eq('scanSecrets 命中私钥', scanSecrets('-----BEGIN RSA PRIVATE KEY-----').length, 1)
   eq('scanSecrets 不误报版本号', scanSecrets('升级到 10.2.0'), [])
 
@@ -769,6 +772,170 @@ const noProjectionCtx = fakeCtx({
 const fallback = usageOf(noProjectionCtx, 's2')
 eq('没有投影时按调用轮数推算', fallback.turns, 2)
 eq('没有投影时用上次请求长度当上下文', fallback.contextTokens, 44000 + 43000)
+
+/* ------------------------------------------- 8.5 空对话不交接 */
+
+const { sessionHasWork, handoffRefusal, EMPTY_SESSION_MESSAGE } = __testing
+
+check('只有元事件不算有内容', !sessionHasWork([{ type: 'session/start', time: 1 }, { type: 'session/header', time: 2 }]))
+check('空事件数组不算有内容', !sessionHasWork([]))
+check('没有事件字段不算有内容', !sessionHasWork(null))
+check('用户消息算有内容', sessionHasWork([{ type: 'user/message' }]))
+check('助手消息算有内容', sessionHasWork([{ type: 'assistant/message' }]))
+check('回合结束算有内容', sessionHasWork([{ type: 'turn/end' }]))
+check('刚开始一步也算有内容', sessionHasWork([{ type: 'step/start' }]))
+
+const emptyLiveCtx = fakeCtx({
+  sessions: { get: () => ({ ownEvents: () => [{ type: 'session/start', time: 1 }] }) },
+})
+eq('新建对话被拒绝', await handoffRefusal(emptyLiveCtx, 's-new'), EMPTY_SESSION_MESSAGE)
+
+const workedLiveCtx = fakeCtx({
+  sessions: { get: () => ({ ownEvents: () => [{ type: 'user/message' }, { type: 'turn/end' }] }) },
+})
+eq('做过事的对话放行', await handoffRefusal(workedLiveCtx, 's-worked'), '')
+
+eq('读不到会话状态时放行', await handoffRefusal(fakeCtx({}), 's-unknown'), '')
+eq('没有 sessionId 时交给后面的检查', await handoffRefusal(emptyLiveCtx, ''), '')
+
+const emptyColdCtx = fakeCtx({
+  sessionPersistence: { open: async () => ({ read: async () => ({ events: [{ type: 'session/start' }] }) }) },
+})
+eq('冷会话为空也拒绝', await handoffRefusal(emptyColdCtx, 's-cold-empty'), EMPTY_SESSION_MESSAGE)
+
+const workedColdCtx = fakeCtx({
+  sessionPersistence: {
+    open: async () => ({ read: async () => ({ events: [{ type: 'assistant/message', data: {} }] }) }),
+  },
+})
+eq('冷会话有回合就放行', await handoffRefusal(workedColdCtx, 's-cold-worked'), '')
+
+const brokenColdCtx = fakeCtx({
+  sessionPersistence: {
+    open: async () => {
+      throw new Error('盘读不了')
+    },
+  },
+})
+eq('读盘失败不拦', await handoffRefusal(brokenColdCtx, 's-cold-broken'), '')
+
+/* 路由层：空对话在投递前就被挡住，一次 prompt 都不发 */
+async function callHandoffRoute(route, bodyObj) {
+  const req = Readable.from([Buffer.from(JSON.stringify(bodyObj))])
+  req.method = 'POST'
+  req.url = route.path
+  req.socket = { remoteAddress: '127.0.0.1' }
+  const out = { status: 0, body: '' }
+  const res = {
+    statusCode: 0,
+    setHeader() {},
+    end(chunk) {
+      out.status = res.statusCode
+      out.body = String(chunk == null ? '' : chunk)
+    },
+  }
+  await route.handler(req, res)
+  return out
+}
+
+function handoffRouteFor(services) {
+  const list = []
+  const ctx = fakeCtx({
+    ...services,
+    webServer: {
+      register(route) {
+        list.push(route)
+        return () => {}
+      },
+    },
+    tools: { register: () => () => {} },
+  })
+  apply(ctx, {})
+  return list.find((route) => route.path === '/dsh-dossier/handoff')
+}
+
+const sentPrompts = []
+const emptyRoute = handoffRouteFor({
+  sessions: { get: () => ({ ownEvents: () => [{ type: 'session/start' }] }) },
+  sessionController: {
+    prompt: async () => {
+      sentPrompts.push('empty')
+    },
+  },
+})
+const emptyReply = await callHandoffRoute(emptyRoute, { sessionId: 's-new' })
+eq('空对话返回 409', emptyReply.status, 409)
+eq('空对话不投递 prompt', sentPrompts.length, 0)
+check('空对话带 empty-session 标记', JSON.parse(emptyReply.body).code === 'empty-session', emptyReply.body)
+check('空对话说清原因', JSON.parse(emptyReply.body).error.includes('还没有可交接的内容'), emptyReply.body)
+
+const okRoute = handoffRouteFor({
+  sessions: { get: () => ({ ownEvents: () => [{ type: 'assistant/message', data: {} }] }) },
+  sessionController: {
+    prompt: async () => {
+      sentPrompts.push('ok')
+    },
+  },
+})
+const okReply = await callHandoffRoute(okRoute, { sessionId: 's-worked' })
+eq('做过事的对话返回 200', okReply.status, 200)
+eq('做过事的对话投递一次', sentPrompts, ['ok'])
+
+/* --------------------------------------- 8.6 交接体检脚本自己得能判 */
+
+const { evaluateHandoff, probePrompt } = await import('./handoff-eval.mjs')
+const pluginDir = fileURLToPath(new URL('..', import.meta.url))
+
+function evalOf(docText) {
+  return evaluateHandoff(docText, {
+    cwd: pluginDir,
+    docDir: pluginDir,
+    tools: { estimateTokens, scanSecrets },
+  })
+}
+
+const goodDoc = [
+  '# 好交接',
+  '',
+  '## 目标',
+  '把示例项目的测试跑通。',
+  '',
+  '## 当前状态',
+  '- 已完成：宿主逻辑写完（2026-11-07 实测 191 项通过）。',
+  '',
+  '## 关键决策',
+  '- 用 A → 因为 B 更省一次冷启动。',
+  '',
+  '## 已否决的方案',
+  '- 用 C → 会把历史污染到无法回滚 → 改成 D。',
+  '',
+  '## 约束',
+  '- Node 22。',
+  '',
+  '## 涉及文件',
+  '- `index.js` — 宿主逻辑。',
+  '',
+  '## 下一步',
+  '1. 跑 `scripts/selftest.mjs`；验收：输出 PASS。',
+  '',
+  '## 未解决与风险',
+  '- 无',
+].join('\n')
+
+const goodResult = evalOf(goodDoc)
+eq('体检脚本给合格文档放行', goodResult.failed, [])
+check('体检脚本报出 token 数', goodResult.tokens > 0 && goodResult.tokens <= 1500, String(goodResult.tokens))
+
+const badResult = evalOf('# 只有一个标题\n')
+check('体检脚本拦住缺骨架的文档', badResult.failed.some((line) => line.includes('缺「下一步」')), badResult.failed.join(' / '))
+
+const dangling = evalOf(goodDoc.replace('`index.js`', '`nope/missing.js`'))
+check('体检脚本拦住悬空引用', dangling.failed.some((line) => line.includes('引用的路径不存在')), dangling.failed.join(' / '))
+
+const twoPart = evalOf(goodDoc.replace('- 用 C → 会把历史污染到无法回滚 → 改成 D。', '- 用 C → 因为 D 更好。'))
+check('体检脚本要求已否决写症状', twoPart.failed.some((line) => line.includes('缺「症状」段')), twoPart.failed.join(' / '))
+
+check('探针把文档原样包进去', probePrompt(goodDoc).includes('把示例项目的测试跑通'))
 
 /* ------------------------------------------------------------------ 汇总 */
 

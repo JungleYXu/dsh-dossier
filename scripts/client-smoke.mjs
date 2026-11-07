@@ -244,7 +244,7 @@ check('「已交接 N 次」是能点的链接', source.includes('dz-tag-link') 
 check('好几份交接文档时给下拉挑选', source.includes('function handoffDocsOf') && source.includes('function jumpToDoc') && source.includes('hoPanel'))
 check('卷宗标记能跳到那个卷宗', source.includes('function openFolderPage'))
 check('未归档的文档行前面有图标', (source.match(/className: 'dz-doc-ico'/g) || []).length >= 2)
-check('对话图标改成圆形气泡（跟文件夹区分开）', source.includes('M8 2.9a5.1 5.1 0 1 1 0 10.2') && !source.includes('M2.8 4.3h10.4v6.5H7.4L5 13.2v-2.4H2.8z'))
+check('对话图标改成圆角气泡（跟文件夹区分开）', source.includes('M3 9.2V6.4a2.2 2.2 0 0 1 2.2-2.2') && !source.includes('M2.8 4.3h10.4v6.5H7.4L5 13.2v-2.4H2.8z'))
 check('导入会报告「接回了几条对话的定位」', source.includes('条对话的「定位」接回来了'))
 check('交接文档按对话当前归属分组', source.includes('function docsViewOf'))
 check('对话没了的文档标出来并收进未归档', source.includes('关联对话已删除'))
@@ -281,7 +281,23 @@ check(
 check('Esc 等于取消', source.includes("event.key === 'Escape'") && source.includes('setConfirmAsk(null)'))
 check('危险按钮不再铺一整块红', source.includes('is-danger-soft') && !source.includes('is-danger-solid'))
 check('归入/挑文档的浮层点外面也只抖', (source.match(/setMenuShake\(\(tick\) => tick \+ 1\)/g) || []).length >= 2)
-check('交接按钮重画成胶囊', source.includes('.dz-hb {') && source.includes('dz-hb-hint') && source.includes('生成中…'))
+check('交接按钮重画成胶囊', source.includes('.dz-hb {') && source.includes('生成中…'))
+check('交接按钮只剩图标和两个字，没有「交接文档」小字', !source.includes('dz-hb-hint'))
+check(
+  '生成时文字变绿、完成后回到正文色',
+  /\.dz-hb\.is-busy \{[^}]*color:var\(--dsw-alias-state-success-primary\)/.test(source) &&
+    /\.dz-hb\.is-ok \{[^}]*color:var\(--dsw-alias-label-primary\)/.test(source),
+)
+
+/* 第 10 轮：图标换成一套圆头细线 */
+check('图标只剩一套 GLYPHS（不再有 A/B/C 三套）', source.includes('const GLYPHS = {') && !source.includes('ICON_SET') && !source.includes('GLYPH_SETS'))
+check('图标统一 16 网格、1.5 圆头描边', source.includes("viewBox: '0 0 16 16'") && source.includes("strokeWidth: '1.5'") && source.includes("strokeLinecap: 'round'") && source.includes("strokeLinejoin: 'round'"))
+check('侧栏图标换成档案盒', source.includes('M2.8 5.1h18.4v3.2H2.8z'))
+
+/* 第 9 轮：空对话的拒绝是「状态」不是「失败」，按钮不能劝人重试 */
+check('错误对象带得住 code', source.includes('error.code = String(body.code)'))
+check('空对话单独成一个状态', source.includes("code === 'empty-session' ? 'empty' : 'error'") && source.includes('无可交接'))
+check('空对话不显示「重试」', source.indexOf("? '无可交接'") > 0 && source.indexOf("? '重试'") > source.indexOf("? '无可交接'"))
 
 const icon = registered.find((item) => item.options.name === 'sidebar.panellist')
 const iconTree = render(icon.component, { size: 18, active: true })

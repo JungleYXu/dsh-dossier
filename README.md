@@ -4,7 +4,7 @@
 
 [![npm](https://img.shields.io/npm/v/dsh-dossier?label=npm&color=blue)](https://www.npmjs.com/package/dsh-dossier)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
-[![status](https://img.shields.io/badge/status-beta-orange)](#状态)
+[![status](https://img.shields.io/badge/status-1.0-brightgreen)](#状态)
 [![platform](https://img.shields.io/badge/DSH%20Desktop-0.2.x-5b6b8c)](https://www.deepseek.com/harness/)
 
 DeepSeek Harness 插件：侧栏多一个「卷宗」面板，把会话按项目分卷归档；需要换人、换机器、或者隔了几天再回来时，让当前会话自己写一份交接文档，接手的会话读文档就能继续。
@@ -59,9 +59,12 @@ Agent 会话的费用不按轮数收，按**被重新计算的上下文长度**�
 ```
 
 - 阶段号自动递增（扫同目录取 max+1）
+- 空对话直接拒绝：宿主按会话事件判断「有没有干过活」，没有就返回 `409 empty-session`，**一个 prompt 都不投递**，按钮当场显示「无可交接」
 - 双机场景下「对话在、文档不在」也能从全局备份取回
 - 写盘前扫密钥与内网地址（`sk-…`、`password=`、`10./127./192.168./172.16-31.`、`PRIVATE KEY`），命中即告警
 - 超过 1800 token 会提示「砍背景与过程」
+
+交接文档写出来能不能被接住，可以测：`scripts/handoff-eval.mjs` 对骨架八节、1500 token 预算、路径悬空、密钥残留做静态检查；质量层面用「零上下文盲接」——把文档单独交给一个不许读仓库的新会话，看它能不能复述下一步与验收标准。
 
 文档骨架是固定的，写在工具描述里，agent 每次都会读到：
 
@@ -118,7 +121,7 @@ bundle patch 自带一行默认配置（row id `dossier`），可在 profile 的
 
 ## 状态
 
-`0.1.0-beta`：功能完整、自测覆盖宿主与客户端两侧，但界面与数据结构仍可能调整。反馈请开 issue。
+`1.0.0`：功能完整，宿主与客户端两侧都有自测（宿主 218 项、客户端 63 项、交接文档体检 23 项）。界面上 1.0 之后只做增补，不再改数据格式；`~/.dsh/dossier.json` 的迁移会先备份旧文件。反馈请开 issue。
 
 ## 兼容性
 
@@ -128,12 +131,13 @@ bundle patch 自带一行默认配置（row id `dossier`），可在 profile 的
 ## 开发
 
 ```bash
-node scripts/selftest.mjs       # 191 项断言：纯函数 / 存储 / 写操作 / 交接落盘 / 文档目录 / 整包导入导出 / 费用估算 / 装配
-node scripts/client-smoke.mjs   # 55 项断言：React 桩跑客户端，确认三个槽位都能渲染
+node scripts/selftest.mjs       # 218 项断言：纯函数 / 存储 / 写操作 / 交接落盘 / 空对话拒绝 / 文档目录 / 整包导入导出 / 费用估算 / 装配
+node scripts/client-smoke.mjs   # 63 项断言：React 桩跑客户端，确认三个槽位都能渲染、按钮与图标契约成立
+node scripts/handoff-eval.mjs <文档.md> --cwd .   # 交接文档体检：骨架 / 预算 / 悬空路径 / 密钥 / 验收标准
 node scripts/inspect-session.mjs <sessionId>   # 按 zstd 帧切会话日志，数事件类型（排查用）
 ```
 
-自测通过 `DSH_DOSSIER_STORE`、`DSH_DOSSIER_BACKUP` 把数据改道到临时目录，跑完自清。
+`npm test` 连跑前两个。自测通过 `DSH_DOSSIER_STORE`、`DSH_DOSSIER_BACKUP` 把数据改道到临时目录，跑完自清。
 
 ```
 index.js   宿主侧：/dsh-dossier/{state,op,handoff,usage,docs,docop} 六条路由 + dossier_handoff_write 工具

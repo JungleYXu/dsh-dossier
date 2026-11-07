@@ -1,6 +1,6 @@
 {
   "name": "dsh-dossier",
-  "version": "0.1.0-beta.1",
+  "version": "1.0.0",
   "description": "Dossier for DeepSeek Harness: split long-running projects into volumes and hand off state with a generated handoff document instead of replaying context.",
   "type": "module",
   "exports": {
@@ -16,6 +16,7 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "keywords": [
@@ -39,8 +40,10 @@
     "url": "https://github.com/JungleYXu/dsh-dossier/issues"
   },
   "scripts": {
+    "test": "node scripts/selftest.mjs && node scripts/client-smoke.mjs",
     "selftest": "node scripts/selftest.mjs",
-    "smoke": "node scripts/client-smoke.mjs"
+    "smoke": "node scripts/client-smoke.mjs",
+    "eval": "node scripts/handoff-eval.mjs"
   },
   "engines": {
     "node": ">=20"

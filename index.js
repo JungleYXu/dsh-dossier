@@ -38,6 +38,7 @@ const DOC_OP_PATH = `${PREFIX}/docop`
 const STORE_PATH = process.env.DSH_DOSSIER_STORE || join(homedir(), '.dsh', 'dossier.json')
 const BACKUP_ROOT = process.env.DSH_DOSSIER_BACKUP || join(homedir(), '.dsh', 'dossier', 'handoffs')
 const MAX_BODY_CHARS = 400_000
+const EMPTY_SESSION_MESSAGE = '这条对话还没有可交接的内容：先让它做点事，再交接。'
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
 /* 卷宗内的排序：手动（默认，可 ↑↓）/ 按更新时间 / 按名称 */
 const FOLDER_SORTS = new Set(['manual', 'time', 'name'])
@@ -78,7 +79,7 @@ export function scanSecrets(text) {
   const hits = []
   if (/\bsk-[A-Za-z0-9_-]{12,}/.test(s)) hits.push('疑似 API key（sk-…）')
   if (/(password|passwd|pwd)\s*[:=]\s*\S/i.test(s)) hits.push('疑似口令（password=…）')
-  if (/\b(10|127)\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/.test(s)) hits.push('疑似内网地址')
+  if (/\b10\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/.test(s)) hits.push('疑似内网地址')
   if (/\b192\.168\.\d{1,3}\.\d{1,3}\b/.test(s)) hits.push('疑似内网地址')
   if (/\b172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}\b/.test(s)) hits.push('疑似内网地址')
   if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(s)) hits.push('疑似私钥')
@@ -290,6 +291,56 @@ function sessionCwd(ctx, sessionId) {
 
   const fallback = process.cwd()
   return fallback && fallback !== '/' ? fallback : homedir()
+}
+
+/*
+ * 一条对话「有没有东西可交接」：只看真实回合，不把会话自身的元事件算进来。
+ * 新建对话立刻点交接，只会花一次冷启动的钱写出一份空话，所以在投递前就拦掉。
+ */
+function sessionHasWork(events) {
+  for (const event of Array.isArray(events) ? events : []) {
+    if (!event || !event.type) continue
+    const type = event.type
+    if (type === 'user/message' || type === 'assistant/message') return true
+    if (type === 'turn/end' || type === 'step/start') return true
+  }
+  return false
+}
+
+/* 返回拒绝理由；空串表示可以交接。读不到会话状态就放行，不误伤。 */
+async function handoffRefusal(ctx, sessionId) {
+  const id = String(sessionId || '').trim()
+  if (!id) return ''
+
+  const sessions = service(ctx, 'sessions')
+  let session
+  try {
+    session = sessions && typeof sessions.get === 'function' ? sessions.get(id) : undefined
+  } catch {
+    session = undefined
+  }
+  if (session) {
+    let events = []
+    try {
+      events = typeof session.ownEvents === 'function' ? session.ownEvents() : []
+    } catch {
+      events = []
+    }
+    return sessionHasWork(events) ? '' : EMPTY_SESSION_MESSAGE
+  }
+
+  // 冷会话不在内存里：日志还在盘上，读一遍再判断。
+  try {
+    const persistence = service(ctx, 'sessionPersistence')
+    if (persistence && typeof persistence.open === 'function') {
+      const handle = await persistence.open(id, 'read')
+      const result = await handle.read()
+      return sessionHasWork(result && result.events) ? '' : EMPTY_SESSION_MESSAGE
+    }
+  } catch {
+    /* 读不到就不拦：宁可放行，也不能把能交接的对话挡在外面 */
+  }
+  return ''
 }
 
 function resolveRoot(cwd, requested) {
@@ -1224,6 +1275,10 @@ function registerRoutes(ctx, conf, webServer) {
           const payload = await readJsonBody(req)
           const sessionId = String(payload.sessionId || '').trim()
           if (!sessionId) throw new Error('缺少 sessionId')
+          const refusal = await handoffRefusal(ctx, sessionId)
+          if (refusal) {
+            return sendJson(res, 409, { ok: false, error: refusal, code: 'empty-session' })
+          }
           const controller = service(ctx, 'sessionController')
           if (!controller || typeof controller.prompt !== 'function') {
             throw new Error('会话控制器不可用：无法把交接请求投递进该对话')
@@ -1284,6 +1339,7 @@ const TOOL_DESCRIPTION = [
   '硬规则：',
   '- 总长 ≤ 1500 token（约 2000 汉字）。超了先砍「过程」「背景」，保住「已否决」「下一步」「约束」。',
   '- 不贴代码块、不贴日志、不抄对话原文，只给路径与结论。',
+  '- 「涉及文件」和正文里的路径都从工作区根写起（如 dsh-dossier/index.js），不要写要人猜的简写。',
   '- 「下一步」必须是下一个人能直接执行的动作，不是方向描述。',
   '- 不写寒暄，不写「本次会话中我们讨论了…」。',
   '- 会话里的密钥、口令、内网地址不要写进文档。',
@@ -1429,6 +1485,9 @@ export const __testing = {
   ensureHandoffTree,
   docOp,
   uniquePath,
+  sessionHasWork,
+  handoffRefusal,
+  EMPTY_SESSION_MESSAGE,
   STORE_PATH,
   BACKUP_ROOT,
 }
