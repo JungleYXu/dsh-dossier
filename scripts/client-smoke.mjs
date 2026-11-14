@@ -230,6 +230,45 @@ check(
   '左栏卷宗区可以自己滚',
   source.includes("className: 'dz-side-scroll'") && source.includes('.dz-side-scroll {'),
 )
+
+/* 1.0.1：左栏「内容一多就无限拉长、没有滚动条」与卡片标记横向溢出 */
+check(
+  '左栏行不被压扁（flex 列里的行禁止收缩）',
+  /\.dz-side-scroll > \* \{[^}]*flex:0 0 auto/.test(source) && /\.dz-side > \* \{[^}]*flex:0 0 auto/.test(source),
+)
+check(
+  '左栏不再用 100vh 硬算高度',
+  !/max-height:calc\(100vh/.test(source),
+)
+check(
+  '面板由父容器定高、内容不把页面撑长',
+  /\.dz-page \{[^}]*height:100%[^}]*overflow:hidden/.test(source),
+)
+check(
+  '对话列表在自己的框里滚',
+  /\.dz-list \{[^}]*overflow-y:auto/.test(source) && /\.dz-main \{[^}]*max-height:100%/.test(source),
+)
+check(
+  '卡片标记行不换行、超出即裁',
+  /\.dz-row-tags \{[^}]*overflow:hidden[^}]*flex-wrap:nowrap/.test(source),
+)
+check(
+  '超长卷宗名用省略号收口（两个标记都接上）',
+  /\.dz-tag-name \{[^}]*text-overflow:ellipsis/.test(source) &&
+    (source.match(/className: 'dz-tag-name'/g) || []).length === 2,
+)
+check(
+  '标记整体不超出卡片宽度',
+  /\.dz-tag \{[^}]*max-width:100%/.test(source) && /\.dz-tag\.is-folder \{ flex:0 1 auto/.test(source),
+)
+check(
+  '左栏不再 sticky，高度贴住父容器',
+  /\.dz-side \{[^}]*max-height:100%/.test(source) && !/\.dz-side \{[^}]*position:sticky/.test(source),
+)
+check(
+  '左栏算上 padding 也不超出父容器',
+  /\.dz-side \{[^}]*box-sizing:border-box/.test(source),
+)
 check(
   '交接文档的「未归档」是左栏缩进的独立入口',
   source.includes("sideRow(\n          'docLoose',") && source.includes("kind: 'docLoose'"),
@@ -241,6 +280,7 @@ check('对话改名走宿主会话服务', source.includes('sessions.using(id, {
 
 /* 第 5 轮：交接标记/卷宗标记变成链接、文档行带图标、对话图标换辨识度 */
 check('「已交接 N 次」是能点的链接', source.includes('dz-tag-link') && source.includes('function openHandoffs'))
+check('交接标记不再挂一个右箭头', !source.includes('dz-tag-arrow'))
 check('好几份交接文档时给下拉挑选', source.includes('function handoffDocsOf') && source.includes('function jumpToDoc') && source.includes('hoPanel'))
 check('卷宗标记能跳到那个卷宗', source.includes('function openFolderPage'))
 check('未归档的文档行前面有图标', (source.match(/className: 'dz-doc-ico'/g) || []).length >= 2)

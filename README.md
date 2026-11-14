@@ -146,7 +146,7 @@ bundle patch 自带一行默认配置（row id `dossier`），可在 profile 的
 
 ## 状态
 
-`1.0.0`：功能完整，宿主与客户端两侧都有自测（宿主 218 项、客户端 63 项、交接文档体检 23 项）。界面上 1.0 之后只做增补，不再改数据格式；`~/.dsh/dossier.json` 的迁移会先备份旧文件。反馈请开 issue。
+`1.0.1`：功能完整，宿主与客户端两侧都有自测（宿主 218 项、客户端 73 项、交接文档体检 23 项），另有 `scripts/preflight.mjs` 在安装前查包名/客户端 id/依赖声明是否会被宿主正确加载。1.0.1 只修显示：左栏回到「框内自己滚」，卡片上的标记不再顶出边框。界面上 1.0 之后只做增补，不再改数据格式；`~/.dsh/dossier.json` 的迁移会先备份旧文件。反馈请开 issue。
 
 ## 兼容性
 
@@ -156,13 +156,14 @@ bundle patch 自带一行默认配置（row id `dossier`），可在 profile 的
 ## 开发
 
 ```bash
+node scripts/preflight.mjs      # 装之前就该拦下的问题：包名与客户端 id 不一致、依赖没在 dsh.client.inject 里声明、profile 装的是旧副本
 node scripts/selftest.mjs       # 218 项断言：纯函数 / 存储 / 写操作 / 交接落盘 / 空对话拒绝 / 文档目录 / 整包导入导出 / 费用估算 / 装配
-node scripts/client-smoke.mjs   # 63 项断言：React 桩跑客户端，确认三个槽位都能渲染、按钮与图标契约成立
+node scripts/client-smoke.mjs   # 73 项断言：React 桩跑客户端，确认三个槽位都能渲染、按钮与图标契约成立、左栏与标记不会溢出
 node scripts/handoff-eval.mjs <文档.md> --cwd .   # 交接文档体检：骨架 / 预算 / 悬空路径 / 密钥 / 验收标准
 node scripts/inspect-session.mjs <sessionId>   # 按 zstd 帧切会话日志，数事件类型（排查用）
 ```
 
-`npm test` 连跑前两个。自测通过 `DSH_DOSSIER_STORE`、`DSH_DOSSIER_BACKUP` 把数据改道到临时目录，跑完自清。
+`npm test` 连跑前三项。自测通过 `DSH_DOSSIER_STORE`、`DSH_DOSSIER_BACKUP` 把数据改道到临时目录，跑完自清。
 
 ```
 index.js   宿主侧：/dsh-dossier/{state,op,handoff,usage,docs,docop} 六条路由 + dossier_handoff_write 工具

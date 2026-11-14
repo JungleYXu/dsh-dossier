@@ -398,15 +398,15 @@ window.__ModuleLoader__.load({
     /* ------------------------------------------------------------- 样式 */
 
     const CSS = `
-.dz-page { box-sizing:border-box; min-height:100%; padding:22px 26px 36px; background:var(--dsw-alias-bg-base); color:var(--dsw-alias-label-primary); font:inherit; display:flex; flex-direction:column; gap:14px; }
-.dz-top { display:flex; flex-direction:column; gap:5px; }
+.dz-page { box-sizing:border-box; height:100%; min-height:0; overflow:hidden; padding:22px 26px 36px; background:var(--dsw-alias-bg-base); color:var(--dsw-alias-label-primary); font:inherit; display:flex; flex-direction:column; gap:14px; }
+.dz-top { flex:0 0 auto; display:flex; flex-direction:column; gap:5px; }
 .dz-h1 { margin:0; font-size:18px; font-weight:600; letter-spacing:.02em; display:flex; align-items:baseline; gap:10px; }
 .dz-h1 small { font-size:12px; font-weight:400; color:var(--dsw-alias-label-secondary); }
-.dz-sub { font-size:12px; color:var(--dsw-alias-label-secondary); line-height:1.6; }
+.dz-sub { font-size:12px; color:var(--dsw-alias-label-secondary); line-height:1.6; overflow-wrap:anywhere; }
 .dz-usage { font-size:12px; color:var(--dsw-alias-label-secondary); line-height:1.6; font-variant-numeric:tabular-nums; }
 .dz-sub code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; padding:1px 5px; border-radius:4px; background:var(--dsw-alias-bg-layer-2); }
-.dz-body { display:grid; grid-template-columns:236px minmax(0,1fr); gap:16px; align-items:start; }
-.dz-side { border:1px solid var(--dsw-alias-border-l2); border-radius:10px; background:var(--dsw-alias-bg-layer-1); padding:6px; display:flex; flex-direction:column; gap:2px; }
+.dz-body { flex:1 1 auto; min-height:0; display:grid; grid-template-columns:236px minmax(0,1fr); gap:16px; align-items:start; }
+.dz-side { box-sizing:border-box; flex:none; min-height:0; max-height:100%; overflow:hidden; border:1px solid var(--dsw-alias-border-l2); border-radius:10px; background:var(--dsw-alias-bg-layer-1); padding:6px; display:flex; flex-direction:column; gap:2px; }
 .dz-side-row.is-pinned { background:var(--dsw-alias-bg-layer-2); }
 .dz-doc-group { border:1px solid var(--dsw-alias-border-l2); border-radius:9px; background:var(--dsw-alias-bg-layer-1); margin-bottom:8px; overflow:hidden; }
 .dz-doc-group.is-open { background:var(--dsw-alias-bg-layer-1); }
@@ -463,7 +463,7 @@ window.__ModuleLoader__.load({
 .dz-seg-btn.is-on { color:var(--dsw-alias-brand-primary); background:var(--dsw-alias-bg-layer-2); font-weight:600; box-shadow:inset 0 0 0 1px var(--dsw-alias-brand-primary); }
 .dz-btn.dz-block { width:100%; justify-content:flex-start; }
 .dz-main { border:1px solid var(--dsw-alias-border-l2); border-radius:10px; background:var(--dsw-alias-bg-layer-1); display:flex; flex-direction:column; min-height:340px; overflow:hidden; }
-.dz-main-head { display:flex; align-items:center; gap:12px; padding:0 13px; height:52px; border-bottom:1px solid var(--dsw-alias-border-l2); flex-wrap:nowrap; }
+.dz-main-head { flex:0 0 auto; display:flex; align-items:center; gap:12px; padding:0 13px; height:52px; border-bottom:1px solid var(--dsw-alias-border-l2); flex-wrap:nowrap; }
 .dz-main-head > div:first-child { min-width:0; flex:1 1 auto; }
 .dz-main-title { font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .dz-main-sub { font-size:11.5px; color:var(--dsw-alias-label-secondary); margin-top:2px; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -512,23 +512,26 @@ window.__ModuleLoader__.load({
 .dz-state.is-warm { color:var(--dsw-alias-state-success-primary); }
 .dz-state.is-broken { color:var(--dsw-alias-state-warn-primary); }
 .dz-state.is-broken .dz-dot { background:var(--dsw-alias-state-warn-primary); }
-.dz-tag { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; padding:1px 6px; border-radius:9px; border:1px solid var(--dsw-alias-border-l1); color:var(--dsw-alias-label-secondary); white-space:nowrap; }
-.dz-tag.is-brand { color:var(--dsw-alias-brand-primary); border-color:var(--dsw-alias-brand-primary); }
-.dz-tag.is-folder { color:var(--dsw-alias-label-primary); background:var(--dsw-alias-bg-layer-2); border-color:var(--dsw-alias-border-l2); font-weight:600; }
+.dz-tag { display:inline-flex; align-items:center; gap:4px; min-width:0; max-width:100%; font-size:10.5px; padding:1px 6px; border-radius:9px; border:1px solid var(--dsw-alias-border-l1); color:var(--dsw-alias-label-secondary); white-space:nowrap; }
+/* 标记里的文字自己收口：卷宗名可以很长，卡片只有 176px 起，不能让标记顶出卡片边框 */
+.dz-tag-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dz-tag.is-brand { flex:0 0 auto; color:var(--dsw-alias-brand-primary); border-color:var(--dsw-alias-brand-primary); }
+.dz-tag.is-folder { flex:0 1 auto; color:var(--dsw-alias-label-primary); background:var(--dsw-alias-bg-layer-2); border-color:var(--dsw-alias-border-l2); font-weight:600; }
 /* 标记本身也是按钮：默认是标签的样子，鼠标移上去才露出「可以点」 */
 .dz-tag-link { border:1px solid var(--dsw-alias-border-l1); background:transparent; font:inherit; font-size:10.5px; line-height:16px; cursor:pointer; padding:0 6px; }
 .dz-tag.is-brand.dz-tag-link { border-color:var(--dsw-alias-brand-primary); }
 .dz-tag.is-folder.dz-tag-link { border-color:var(--dsw-alias-border-l2); background:var(--dsw-alias-bg-layer-2); }
 .dz-tag-link:hover { text-decoration:underline; }
 .dz-tag-link:disabled { cursor:default; text-decoration:none; }
-.dz-tag-arrow, .dz-tag-caret { font-size:9px; opacity:.72; }
-.dz-row-hint { flex:none; font-size:10.5px; padding:1px 7px; border-radius:9px; white-space:nowrap; color:var(--dsw-alias-state-warn-primary); border:1px solid var(--dsw-alias-state-warn-primary); }
+.dz-tag-caret { font-size:9px; opacity:.72; }
+.dz-row-hint { flex:none; min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; font-size:10.5px; padding:1px 7px; border-radius:9px; white-space:nowrap; color:var(--dsw-alias-state-warn-primary); border:1px solid var(--dsw-alias-state-warn-primary); }
 /* 五角星是唯一一处不用主题色：交接文档要一眼找到，主题里没有"黄" */
 .dz-star { color:#e8a300; font-size:13px; }
 /* 卡片固定四行：标题 / 标记 / 「已在某卷宗」/ 时间；中间两行永远占位，所以卡片高度不跳 */
 .dz-row-blank { display:inline-block; min-height:10px; }
-.dz-row-tags { min-height:16px; }
-.dz-row-hintline { min-height:14px; }
+/* 卡片第二、三行：标记行不换行、超长收口；「已在某卷宗」那句也一样，不许顶出卡片 */
+.dz-row-tags { min-height:16px; min-width:0; overflow:hidden; flex-wrap:nowrap; }
+.dz-row-hintline { min-height:14px; min-width:0; overflow:hidden; }
 .dz-list.is-grid .dz-row-main { gap:1px; }
 .dz-list.is-grid .dz-row-when { margin-top:auto; }
 /* 卡片里操作按钮绝对定位到右下角，否则它会挤掉标题的宽度让标题换行 */
@@ -585,16 +588,25 @@ window.__ModuleLoader__.load({
 .dz-hb-text { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:.02em; }
 .dz-hb-ico { display:inline-flex; align-items:center; opacity:.85; }
 
-/* 左栏 / 主列表都限高自己滚：卷宗和对话只会越用越多，不能把整页一直往下拉长 */
-.dz-side { position:sticky; top:12px; max-height:calc(100vh - 128px); }
-.dz-side-scroll { flex:1 1 auto; min-height:60px; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:2px; padding-right:2px; }
-.dz-side-scroll::-webkit-scrollbar { width:8px; }
-.dz-side-scroll::-webkit-scrollbar-thumb { background:var(--dsw-alias-border-l2); border-radius:4px; }
-.dz-side-scroll::-webkit-scrollbar-track { background:transparent; }
-.dz-main { max-height:calc(100vh - 196px); }
-.dz-list { overflow-y:auto; }
-.dz-list::-webkit-scrollbar { width:8px; }
-.dz-list::-webkit-scrollbar-thumb { background:var(--dsw-alias-border-l2); border-radius:4px; }
+/* 左栏 / 主列表都限高自己滚：卷宗和对话只会越用越多，不能把整页一直往下拉长。
+   高度不再用 100vh 算 —— 页面是面板里的 flex 列（.dz-page 高 100%），中间那行 flex:1，
+   左右两栏各占这一行的整高，框内自己滚。这样窗口多高、面板被什么包着都不会算错。 */
+.dz-side-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-gutter:stable; display:flex; flex-direction:column; gap:2px; padding-right:2px; }
+/* 关键：卷宗行不许被压扁。少了这句，行会在 flex 列里收缩（32px 压到 23px），
+   于是「行数变多」表现为行越来越矮、而不是出现滚动条 —— 就是「左栏不滚」那个现象。 */
+.dz-side-scroll > * { flex:0 0 auto; }
+/* 同一个坑在外层也有一次：左栏自己也是 flex 列，顶部那几行（交接文档 / 未归档 / 全部对话）
+   在内容超高时同样会被压扁（32px → 22px），所以除滚动区之外的子项一律不收缩。 */
+.dz-side > * { flex:0 0 auto; }
+.dz-side > .dz-side-scroll { flex:1 1 auto; }
+.dz-side-foot { flex:0 0 auto; }
+.dz-main { align-self:stretch; max-height:100%; }
+.dz-list { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+/* 滚动条要看得见：原来的 8px 浅灰在浅底上几乎等于没有，加宽到 10px 并给 thumb 圆角 */
+.dz-side-scroll::-webkit-scrollbar, .dz-list::-webkit-scrollbar { width:10px; height:10px; }
+.dz-side-scroll::-webkit-scrollbar-thumb, .dz-list::-webkit-scrollbar-thumb { background:var(--dsw-alias-border-l2); background:color-mix(in srgb, var(--dsw-alias-label-secondary) 45%, transparent); border-radius:5px; border:2px solid transparent; background-clip:padding-box; }
+.dz-side-scroll::-webkit-scrollbar-thumb:hover, .dz-list::-webkit-scrollbar-thumb:hover { background:color-mix(in srgb, var(--dsw-alias-label-secondary) 65%, transparent); background-clip:padding-box; }
+.dz-side-scroll::-webkit-scrollbar-track, .dz-list::-webkit-scrollbar-track { background:transparent; }
 /* 对话前面的小图标：一眼区分「这是对话」而不是卷宗 */
 .dz-row-ico { flex:none; display:inline-flex; align-items:center; color:var(--dsw-alias-label-secondary); }
 .dz-row-actions .dz-icon-btn { width:20px; height:20px; }
@@ -1469,10 +1481,12 @@ window.__ModuleLoader__.load({
                 },
               },
               [
-                h('span', { key: 't' }, `已交接 ${handoffCount} 次`),
+                h('span', { key: 't', className: 'dz-tag-name' }, `已交接 ${handoffCount} 次`),
+                /* 只有多份交接文档时才给一个「▾」提示可以挑；单份不再挂「→」，
+                   标记本身就够短了，箭头只会多占一截宽度、还像是没点中。 */
                 many
                   ? h('span', { key: 'caret', className: 'dz-tag-caret', 'aria-hidden': true }, '▾')
-                  : h('span', { key: 'arrow', className: 'dz-tag-arrow', 'aria-hidden': true }, '→'),
+                  : null,
               ],
             ),
           )
@@ -1492,7 +1506,7 @@ window.__ModuleLoader__.load({
               },
               [
                 h('span', { key: 'i', className: 'dz-tag-ico' }, glyph('folder')),
-                h('span', { key: 'n' }, folder.name),
+                h('span', { key: 'n', className: 'dz-tag-name' }, folder.name),
               ],
             ),
           )
