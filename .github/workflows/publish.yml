@@ -2,9 +2,16 @@ name: publish
 
 # Publishing lives here rather than in a local shell so the artifact is built
 # from a clean checkout at a tagged commit, and so nobody needs a registry
-# password on their laptop. Enable it by adding an NPM_TOKEN repository secret:
-# a granular token for the package owner with Read and write permission on
-# this package and Bypass 2FA, because npm no longer issues classic tokens.
+# password on their laptop. Two ways in, tried in that order:
+#
+#   1. Trusted publishing (no secret at all): npmjs.com -> the package ->
+#      Settings -> Trusted publishing -> add this repository and this workflow
+#      file name. The run exchanges GitHub's OIDC token for a short-lived
+#      publish token; nothing long-lived is stored anywhere.
+#   2. An NPM_TOKEN secret, for accounts that still hand those out.
+#
+# Trusted publishing needs npm >= 11.5.1, which is why the run upgrades npm
+# instead of using the one bundled with Node 22.
 
 on:
   push:
@@ -13,7 +20,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # npm provenance
+  id-token: write # npm provenance + trusted publishing
 
 jobs:
   publish:
@@ -24,11 +31,8 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
       - run: npm test
-      # Without the secret this job would fail on every tag and turn the
-      # repository's checks red for a reason that has nothing to do with the
-      # code under test. Skip instead, with a visible notice: publishing is
-      # opt-in, the tag itself is still valid.
       - name: Check for a publish token
         id: token
         run: |
@@ -36,15 +40,28 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=npm publish skipped::NPM_TOKEN is not configured; nothing was published. Add the repository secret to enable it."
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      # Two fallbacks keep a bad sigstore entry from blocking a release: if the
-      # version is in fact on the registry, treat it as published; otherwise
-      # publish once more without provenance (a different code path, so there is
-      # no transparency-log entry to deduplicate).
-      - name: npm publish
+      # Trusted publishing: no NODE_AUTH_TOKEN in the environment, so npm goes
+      # through the OIDC exchange described above.
+      - name: npm publish (trusted publishing)
+        if: steps.token.outputs.present != 'true'
+        run: |
+          set -u
+          version="$(node -p "require('./package.json').version")"
+          if npm view "dsh-dossier@$version" version >/dev/null 2>&1; then
+            echo "::notice title=already on the registry::$version is already published; nothing to do."
+            exit 0
+          fi
+          npm publish --access public
+      # Token path, kept for accounts that still issue tokens. v0.12.5 of a
+      # sibling package failed here with TLOG_CREATE_ENTRY_ERROR (409): the
+      # transparency log already held an equivalent entry. Two fallbacks keep a
+      # single bad entry from blocking a release: if the version is in fact on
+      # the registry, treat it as published; otherwise publish once more
+      # without provenance.
+      - name: npm publish (token)
         if: steps.token.outputs.present == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
