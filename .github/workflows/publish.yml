@@ -27,10 +27,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # No registry-url here on purpose: setup-node writes an .npmrc with a
+      # //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN} placeholder, and with
+      # no token configured npm would try to resolve that empty value instead of
+      # going through the OIDC exchange. Setting the registry explicitly keeps
+      # .npmrc free of any auth line, which is what trusted publishing wants.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+      - run: npm config set registry https://registry.npmjs.org
       - run: npm install -g npm@latest
       - run: npm test
       - name: Check for a publish token
